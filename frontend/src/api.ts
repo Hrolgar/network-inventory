@@ -67,6 +67,25 @@ export interface ApiStatus {
   cooldown_remaining?: number;
 }
 
+export interface HistoryScanSummary {
+  id: number;
+  timestamp: string;
+  scan_type: string;
+  summary: {
+    total_clients: number;
+    total_networks: number;
+    total_access_points: number;
+    total_containers: number;
+  };
+  created_at: string;
+}
+
+export interface MetricDataPoint {
+  timestamp: string;
+  value: number;
+  metadata?: Record<string, any>;
+}
+
 const API_BASE_URL = '/api';
 
 export const fetchScanData = async (): Promise<ScanData> => {
@@ -95,4 +114,27 @@ export const fetchApiStatus = async (): Promise<ApiStatus> => {
     throw new Error('Failed to fetch API status');
   }
   return response.json();
+};
+
+export const fetchHistoryScans = async (limit: number = 10): Promise<HistoryScanSummary[]> => {
+  const response = await fetch(`${API_BASE_URL}/history?limit=${limit}`);
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to fetch scan history');
+  }
+  const data = await response.json();
+  return data.scans || [];
+};
+
+export const fetchMetricHistory = async (
+  metricName: string,
+  hours: number = 24
+): Promise<MetricDataPoint[]> => {
+  const response = await fetch(`${API_BASE_URL}/metrics/${metricName}?hours=${hours}`);
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to fetch metric history');
+  }
+  const data = await response.json();
+  return data.data || [];
 };

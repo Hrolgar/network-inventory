@@ -35,10 +35,14 @@ export const useWebSocket = (options: WebSocketHookOptions = {}) => {
       return;
     }
 
-    // Connect to the same origin (works in dev with proxy and production)
-    const socket = io({
-      transports: ['websocket', 'polling'],
-    });
+    try {
+      // Connect to the same origin (works in dev with proxy and production)
+      const socket = io({
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+      });
 
     socket.on('connect', () => {
       console.log('WebSocket connected');
@@ -65,7 +69,18 @@ export const useWebSocket = (options: WebSocketHookOptions = {}) => {
       onScanFailed?.(data);
     });
 
+    socket.on('connect_error', (error) => {
+      console.warn('WebSocket connection error:', error.message);
+    });
+
+    socket.on('error', (error) => {
+      console.warn('WebSocket error:', error);
+    });
+
     socketRef.current = socket;
+    } catch (error) {
+      console.error('Failed to initialize WebSocket:', error);
+    }
   }, [onScanStarted, onScanCompleted, onScanFailed, onConnect, onDisconnect]);
 
   const disconnect = useCallback(() => {
@@ -76,7 +91,15 @@ export const useWebSocket = (options: WebSocketHookOptions = {}) => {
   }, []);
 
   useEffect(() => {
-    connect();
+    // Don't connect in development if WebSocket is causing issues
+    // The app works fine without WebSocket, just no real-time updates
+    const shouldConnect = import.meta.env.PROD || import.meta.env.VITE_ENABLE_WEBSOCKET === 'true';
+
+    if (shouldConnect) {
+      connect();
+    } else {
+      console.log('WebSocket disabled in development (set VITE_ENABLE_WEBSOCKET=true to enable)');
+    }
 
     return () => {
       disconnect();

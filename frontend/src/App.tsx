@@ -8,6 +8,8 @@ import AccessPointsTable from './components/AccessPointsTable';
 import DevicesTable from './components/DevicesTable';
 import ContainersTable from './components/ContainersTable';
 import DownloadDropdown from './components/DownloadDropdown';
+import HistoricalCharts from './components/HistoricalCharts';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // --- Theme Context ---
 type Theme = 'light' | 'dark';
@@ -116,6 +118,20 @@ const App: React.FC = () => {
     loadAllData();
   }, [loadAllData]);
 
+  // Poll status every second to update cooldown timer
+  useEffect(() => {
+    const statusInterval = setInterval(async () => {
+      try {
+        const status = await fetchApiStatus();
+        setApiStatus(status);
+      } catch (err) {
+        console.error('Failed to fetch status:', err);
+      }
+    }, 1000); // Update every second
+
+    return () => clearInterval(statusInterval);
+  }, []);
+
   useEffect(() => {
     if (autoRefreshIntervalRef.current) {
       clearInterval(autoRefreshIntervalRef.current);
@@ -212,7 +228,13 @@ const App: React.FC = () => {
           </p>
         </div>
         <div className="header-controls">
-          <button id="refresh-btn" className="btn btn-primary" onClick={handleRefreshClick} disabled={loading || isScanning || apiStatus?.is_scanning || !apiStatus?.can_scan}>
+          <button
+            id="refresh-btn"
+            className="btn btn-primary"
+            onClick={handleRefreshClick}
+            disabled={loading || isScanning || apiStatus?.is_scanning || !apiStatus?.can_scan}
+            title={!apiStatus?.can_scan && apiStatus?.cooldown_remaining ? `Cooldown: ${apiStatus.cooldown_remaining}s remaining` : 'Trigger a new scan'}
+          >
             {(loading && (isScanning || apiStatus?.is_scanning)) ? <span className="spinner"></span> : '🔄'} Refresh
           </button>
           <DownloadDropdown scanData={scanData} />
@@ -313,6 +335,17 @@ const App: React.FC = () => {
                   </div>
 
                 </div>
+
+                {/* Historical Charts */}
+                <ErrorBoundary
+                  fallback={
+                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      <p>📊 Historical charts unavailable</p>
+                    </div>
+                  }
+                >
+                  <HistoricalCharts timeRange={24} />
+                </ErrorBoundary>
 
                 <NetworksTable networks={filteredScanData.network.networks} loading={loading && !scanData} />
                 <AccessPointsTable accessPoints={filteredScanData.network.access_points} loading={loading && !scanData} />

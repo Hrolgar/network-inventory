@@ -121,7 +121,7 @@ const ContainersTable: React.FC<ContainersTableProps> = ({ containers }) => {
                     <th className={`sortable ${getSortClass(endpoint, 'containerName')}`} onClick={() => handleSort(endpoint, 'containerName')}>Container Name</th>
                     <th className={`sortable ${getSortClass(endpoint, 'Image')}`} onClick={() => handleSort(endpoint, 'Image')}>Image</th>
                     <th className={`sortable ${getSortClass(endpoint, 'statusText')}`} onClick={() => handleSort(endpoint, 'statusText')}>Status</th>
-                    <th>Ports</th> {/* Ports column is not sortable by default in original HTML */}
+                    <th>Ports</th>
                   </tr>
                 </thead>
                 <tbody>

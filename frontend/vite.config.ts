@@ -12,6 +12,14 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
       },
+      // Note: WebSocket proxy disabled by default in dev to prevent connection issues
+      // WebSocket is optional - app works fine without real-time updates
+      // To enable: set VITE_ENABLE_WEBSOCKET=true in .env.local and uncomment below:
+      // '/socket.io': {
+      //   target: 'http://localhost:5000',
+      //   changeOrigin: true,
+      //   ws: true,
+      // },
     },
   },
 })
