@@ -10,7 +10,9 @@ import ContainersTable from './components/ContainersTable';
 import DownloadDropdown from './components/DownloadDropdown';
 import HistoricalCharts from './components/HistoricalCharts';
 import ErrorBoundary from './components/ErrorBoundary';
-import Settings, { AppSettings, loadSettings, DEFAULT_SETTINGS } from './components/Settings';
+import Settings from './components/Settings';
+import DiagramBuilder from './components/DiagramBuilder';
+import { AppSettings, loadSettings, DEFAULT_SETTINGS } from './utils/settingsUtils';
 
 // --- Theme Context ---
 type Theme = 'light' | 'dark';
@@ -61,6 +63,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>(''); // New state for search query
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showDiagram, setShowDiagram] = useState<boolean>(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const autoRefreshIntervalRef = React.useRef<number | null>(null);
   const { theme, toggleTheme } = useTheme();
@@ -263,6 +266,14 @@ const App: React.FC = () => {
           <DownloadDropdown scanData={scanData} />
           <button
             className="btn btn-secondary"
+            onClick={() => setShowDiagram(true)}
+            title="Network Diagram"
+            style={{ padding: '8px 16px' }}
+          >
+            📊 Diagram
+          </button>
+          <button
+            className="btn btn-secondary"
             onClick={() => setShowSettings(true)}
             title="Settings"
             style={{ padding: '8px 16px' }}
@@ -384,6 +395,13 @@ const App: React.FC = () => {
         onClose={() => setShowSettings(false)}
         onSettingsChange={handleSettingsChange}
         currentSettings={settings}
+      />
+
+      {/* Diagram Builder Modal */}
+      <DiagramBuilder
+        isOpen={showDiagram}
+        onClose={() => setShowDiagram(false)}
+        scanData={scanData}
       />
     </div>
   );

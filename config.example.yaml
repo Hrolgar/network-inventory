@@ -33,3 +33,27 @@ portainer:
   #   enabled: true
   #   url: "https://remote.example.com:9443"
   #   api_token: "ptr_remote_token"
+
+# Proxmox VE instances (supports multiple)
+proxmox:
+  - name: "Main Proxmox"
+    enabled: true
+    host: "10.69.1.10"
+    api_token_name: "root@pam!monitoring"  # Format: username@realm!tokenname
+    api_token_value: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    verify_ssl: false  # Set to true if using valid SSL certificates
+
+  - name: "Secondary Proxmox"
+    enabled: false
+    host: "10.69.1.11"
+    api_token_name: "monitor@pve!api"
+    api_token_value: "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
+    verify_ssl: false
+
+  # Add more Proxmox instances as needed
+  # - name: "Remote Proxmox"
+  #   enabled: true
+  #   host: "remote.example.com"
+  #   api_token_name: "admin@pam!token"
+  #   api_token_value: "your_token_value"
+  #   verify_ssl: true

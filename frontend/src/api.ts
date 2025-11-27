@@ -44,6 +44,19 @@ export interface DockerContainer {
   endpoint_id: number;
 }
 
+export interface ProxmoxVM {
+  node: string;
+  vmid: number;
+  name: string;
+  status: string;
+  cpu: number;
+  memory: number;
+  type: string;
+  proxmox_instance: string;
+  ip_addresses?: string[];
+  mac_addresses?: string[];
+}
+
 export interface ScanData {
   network: {
     clients: UniFiClient[];
@@ -52,6 +65,7 @@ export interface ScanData {
     scan_results: NetworkDevice[];
   };
   containers: DockerContainer[];
+  vms: ProxmoxVM[];
   timestamp: string;
   next_scan_available: string;
   is_cached?: boolean;
@@ -160,5 +174,100 @@ export const saveSettings = async (settings: Record<string, any>): Promise<void>
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.error || 'Failed to save settings');
+  }
+};
+
+// Diagram-related types and functions
+export interface DiagramOptions {
+  include_containers: boolean;
+  include_vms: boolean;
+  include_iot_devices: boolean;
+  include_vlans: boolean;
+  include_aps: boolean;
+  theme: 'light' | 'dark';
+}
+
+export interface DiagramTemplate {
+  id: number;
+  name: string;
+  options: DiagramOptions;
+  created_at: string;
+  updated_at: string;
+}
+
+export const generateDiagramPreview = async (
+  options: DiagramOptions
+): Promise<string> => {
+  const response = await fetch(`${API_BASE_URL}/diagram/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ options }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to generate preview');
+  }
+  return response.text(); // SVG as text
+};
+
+export const downloadDiagram = async (
+  format: 'png' | 'svg',
+  options: DiagramOptions
+): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/diagram/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ format, options }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to generate diagram');
+  }
+
+  // Download file
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `network-topology.${format}`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+export const fetchDiagramTemplates = async (): Promise<DiagramTemplate[]> => {
+  const response = await fetch(`${API_BASE_URL}/diagram/templates`);
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to fetch templates');
+  }
+  const data = await response.json();
+  return data.templates || [];
+};
+
+export const saveDiagramTemplate = async (
+  name: string,
+  options: DiagramOptions
+): Promise<DiagramTemplate> => {
+  const response = await fetch(`${API_BASE_URL}/diagram/templates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, options }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to save template');
+  }
+  return response.json();
+};
+
+export const deleteDiagramTemplate = async (name: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/diagram/templates/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to delete template');
   }
 };

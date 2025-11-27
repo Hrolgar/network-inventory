@@ -95,6 +95,19 @@ class Database:
             """
             )
 
+            # Diagram templates table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS diagram_templates (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    options TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """
+            )
+
             # Insert default settings if they don't exist
             cursor.execute(
                 """
@@ -103,7 +116,14 @@ class Database:
                 ('status_poll_interval', '5000'),
                 ('default_chart_time_range', '24'),
                 ('theme', 'light'),
-                ('scan_cooldown', '300')
+                ('scan_cooldown', '300'),
+                ('diagram_include_containers', 'true'),
+                ('diagram_include_vms', 'true'),
+                ('diagram_include_iot_devices', 'true'),
+                ('diagram_include_vlans', 'true'),
+                ('diagram_include_aps', 'true'),
+                ('diagram_theme', 'light'),
+                ('diagram_last_template', '')
             """
             )
 
@@ -337,3 +357,84 @@ class Database:
                     (key, str(value)),
                 )
             logger.info(f"Updated {len(settings)} settings")
+
+    def save_diagram_template(self, name: str, options: dict) -> int:
+        """
+        Save a diagram template
+
+        Args:
+            name: Template name
+            options: Diagram options dictionary
+
+        Returns:
+            Template ID
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO diagram_templates (name, options, updated_at)
+                VALUES (?, ?, datetime('now'))
+            """,
+                (name, json.dumps(options)),
+            )
+            template_id = cursor.lastrowid
+            logger.info(f"Saved diagram template: {name}")
+            return template_id
+
+    def get_diagram_templates(self) -> list[dict]:
+        """Get all diagram templates"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, name, options, created_at, updated_at
+                FROM diagram_templates
+                ORDER BY name
+            """
+            )
+            templates = []
+            for row in cursor.fetchall():
+                templates.append(
+                    {
+                        "id": row["id"],
+                        "name": row["name"],
+                        "options": json.loads(row["options"]),
+                        "created_at": row["created_at"],
+                        "updated_at": row["updated_at"],
+                    }
+                )
+            return templates
+
+    def get_diagram_template(self, name: str) -> dict:
+        """Get a specific diagram template by name"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, name, options, created_at, updated_at
+                FROM diagram_templates
+                WHERE name = ?
+            """,
+                (name,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "options": json.loads(row["options"]),
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                }
+            return None
+
+    def delete_diagram_template(self, name: str) -> bool:
+        """Delete a diagram template"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM diagram_templates WHERE name = ?", (name,))
+            deleted = cursor.rowcount > 0
+            if deleted:
+                logger.info(f"Deleted diagram template: {name}")
+            return deleted

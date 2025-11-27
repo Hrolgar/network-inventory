@@ -12,7 +12,7 @@ from logging.handlers import RotatingFileHandler
 
 import yaml
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_swagger_ui import get_swaggerui_blueprint
 
 from config_validator import check_fatal_errors, validate_environment
@@ -107,6 +107,16 @@ def load_config():
                 "api_token": os.getenv("PORTAINER_API_TOKEN"),
             }
         ],
+        "proxmox": [
+            {
+                "name": os.getenv("PROXMOX_NAME", "Main Proxmox"),
+                "enabled": os.getenv("PROXMOX_ENABLED", "false").lower() == "true",
+                "host": os.getenv("PROXMOX_HOST"),
+                "api_token_name": os.getenv("PROXMOX_API_TOKEN_NAME"),
+                "api_token_value": os.getenv("PROXMOX_API_TOKEN_VALUE"),
+                "verify_ssl": os.getenv("PROXMOX_VERIFY_SSL", "false").lower() == "true",
+            }
+        ] if os.getenv("PROXMOX_HOST") else [],
     }
 
 
@@ -148,12 +158,13 @@ def perform_scan():
         config = load_config()
         inventory = NetworkInventory(config)
 
-        network_data, container_data = inventory.scan_all()
+        network_data, container_data, vm_data = inventory.scan_all()
 
         last_scan_time = datetime.now()
         last_scan_data = {
             "network": network_data,
             "containers": container_data,
+            "vms": vm_data,
             "timestamp": last_scan_time.isoformat(),
             "next_scan_available": (last_scan_time + timedelta(seconds=SCAN_COOLDOWN)).isoformat(),
         }
@@ -321,6 +332,132 @@ def update_settings():
     except Exception as e:
         logger.error(f"Failed to update settings: {e}")
         return jsonify({"error": "Failed to update settings"}), 500
+
+
+@app.route("/api/diagram/generate", methods=["POST"])
+def generate_diagram():
+    """Generate network topology diagram"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid request body"}), 400
+
+        format = data.get("format", "png")  # png or svg
+        options = data.get("options", {})
+
+        if format not in ['png', 'svg']:
+            return jsonify({"error": "Invalid format. Use 'png' or 'svg'"}), 400
+
+        # Get latest scan data or use cached
+        if last_scan_data is None:
+            return jsonify({"error": "No scan data available. Please run a scan first."}), 404
+
+        # Generate diagram
+        from diagram_generator import TopologyDiagramGenerator
+        import io
+
+        generator = TopologyDiagramGenerator(last_scan_data, options)
+        diagram_bytes = generator.generate(format=format)
+
+        # Return as downloadable file
+        mimetype = 'image/png' if format == 'png' else 'image/svg+xml'
+        filename = f'network-topology.{format}'
+
+        return send_file(
+            io.BytesIO(diagram_bytes),
+            mimetype=mimetype,
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        logger.error(f"Diagram generation failed: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/diagram/preview", methods=["POST"])
+def preview_diagram():
+    """Generate SVG preview for display in UI"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid request body"}), 400
+
+        options = data.get("options", {})
+
+        # Get latest scan data or use cached
+        if last_scan_data is None:
+            return jsonify({"error": "No scan data available. Please run a scan first."}), 404
+
+        # Generate diagram as SVG
+        from diagram_generator import TopologyDiagramGenerator
+        import io
+
+        generator = TopologyDiagramGenerator(last_scan_data, options)
+        diagram_bytes = generator.generate(format='svg')
+
+        # Get grouping info
+        grouping_info = generator.get_grouping_info()
+
+        # Return SVG inline with grouping metadata
+        return send_file(
+            io.BytesIO(diagram_bytes),
+            mimetype='image/svg+xml',
+            as_attachment=False  # Display inline
+        )
+
+    except Exception as e:
+        logger.error(f"Diagram preview failed: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/diagram/templates", methods=["GET"])
+def get_diagram_templates():
+    """Get all diagram templates"""
+    try:
+        templates = db.get_diagram_templates()
+        return jsonify({"templates": templates})
+    except Exception as e:
+        logger.error(f"Failed to fetch diagram templates: {e}")
+        return jsonify({"error": "Failed to fetch templates"}), 500
+
+
+@app.route("/api/diagram/templates", methods=["POST"])
+def save_diagram_template():
+    """Save a new diagram template"""
+    try:
+        data = request.get_json()
+        if not data or "name" not in data or "options" not in data:
+            return jsonify({"error": "Invalid request body. Required: name, options"}), 400
+
+        name = data["name"]
+        options = data["options"]
+
+        template_id = db.save_diagram_template(name, options)
+        logger.info(f"Saved diagram template: {name}")
+
+        return jsonify({
+            "success": True,
+            "id": template_id,
+            "name": name
+        })
+    except Exception as e:
+        logger.error(f"Failed to save diagram template: {e}")
+        return jsonify({"error": "Failed to save template"}), 500
+
+
+@app.route("/api/diagram/templates/<name>", methods=["DELETE"])
+def delete_diagram_template(name):
+    """Delete a diagram template"""
+    try:
+        deleted = db.delete_diagram_template(name)
+        if deleted:
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Template not found"}), 404
+    except Exception as e:
+        logger.error(f"Failed to delete diagram template: {e}")
+        return jsonify({"error": "Failed to delete template"}), 500
 
 
 if __name__ == "__main__":

@@ -287,6 +287,133 @@ class PortainerAPI:
         return all_containers
 
 
+class ProxmoxAPI:
+    """Handles Proxmox VE API interactions"""
+
+    def __init__(self, name: str, host: str, api_token_name: str, api_token_value: str, verify_ssl: bool = False):
+        self.name = name
+        self.host = host
+        self.api_token_name = api_token_name
+        self.api_token_value = api_token_value
+        self.verify_ssl = verify_ssl
+        self.proxmox = None
+
+    def connect(self) -> bool:
+        """Connect to Proxmox API using API token"""
+        try:
+            from proxmoxer import ProxmoxAPI as ProxmoxerAPI
+
+            print(f"[*] Connecting to {self.name} at {self.host}...")
+
+            # Parse token name: username@realm!tokenname
+            user_realm, token_name = self.api_token_name.rsplit('!', 1)
+
+            self.proxmox = ProxmoxerAPI(
+                self.host,
+                user=user_realm,
+                token_name=token_name,
+                token_value=self.api_token_value,
+                verify_ssl=self.verify_ssl
+            )
+
+            # Test connection by getting version
+            version = self.proxmox.version.get()
+            print(f"[+] Connected to {self.name} (Proxmox VE {version.get('version', 'unknown')})")
+            return True
+
+        except ImportError:
+            print("[!] proxmoxer not installed. Install with: pip install proxmoxer")
+            return False
+        except Exception as e:
+            print(f"[!] Error connecting to {self.name}: {e}")
+            return False
+
+    def get_nodes(self) -> list[dict]:
+        """Get all Proxmox cluster nodes"""
+        try:
+            nodes = self.proxmox.nodes.get()
+            return nodes
+        except Exception as e:
+            print(f"[!] Error fetching nodes from {self.name}: {e}")
+            return []
+
+    def get_vms(self) -> list[dict]:
+        """Get all VMs (QEMU) and Containers (LXC) across all nodes"""
+        all_vms = []
+
+        try:
+            nodes = self.get_nodes()
+
+            for node in nodes:
+                node_name = node['node']
+                print(f"[*] Fetching VMs from node: {node_name}...")
+
+                # Get QEMU VMs
+                try:
+                    qemu_vms = self.proxmox.nodes(node_name).qemu.get()
+                    for vm in qemu_vms:
+                        vm_data = {
+                            "node": node_name,
+                            "vmid": vm.get("vmid"),
+                            "name": vm.get("name"),
+                            "status": vm.get("status"),
+                            "cpu": vm.get("cpus", 0),
+                            "memory": vm.get("maxmem", 0) // (1024 * 1024),  # Convert to MB
+                            "type": "qemu",
+                            "proxmox_instance": self.name
+                        }
+
+                        # Try to get network config for IP addresses
+                        try:
+                            config = self.proxmox.nodes(node_name).qemu(vm["vmid"]).config.get()
+                            vm_data["ip_addresses"] = []
+                            vm_data["mac_addresses"] = []
+
+                            # Parse network interfaces
+                            for key, value in config.items():
+                                if key.startswith('net'):
+                                    # Extract MAC address
+                                    mac_match = re.search(r'([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', str(value))
+                                    if mac_match:
+                                        vm_data["mac_addresses"].append(mac_match.group(0))
+                        except Exception:
+                            vm_data["ip_addresses"] = []
+                            vm_data["mac_addresses"] = []
+
+                        all_vms.append(vm_data)
+
+                except Exception as e:
+                    print(f"[!] Error fetching QEMU VMs from {node_name}: {e}")
+
+                # Get LXC containers
+                try:
+                    lxc_containers = self.proxmox.nodes(node_name).lxc.get()
+                    for container in lxc_containers:
+                        container_data = {
+                            "node": node_name,
+                            "vmid": container.get("vmid"),
+                            "name": container.get("name"),
+                            "status": container.get("status"),
+                            "cpu": container.get("cpus", 0),
+                            "memory": container.get("maxmem", 0) // (1024 * 1024),  # Convert to MB
+                            "type": "lxc",
+                            "proxmox_instance": self.name,
+                            "ip_addresses": [],
+                            "mac_addresses": []
+                        }
+                        all_vms.append(container_data)
+
+                except Exception as e:
+                    print(f"[!] Error fetching LXC containers from {node_name}: {e}")
+
+            print(f"[+] Found {len(all_vms)} total VMs/containers on {self.name}")
+            return all_vms
+
+        except Exception as e:
+            print(f"[!] Error fetching VMs from {self.name}: {e}")
+            return []
+
+
 class NetworkInventory:
     """Main inventory class that coordinates all scanners"""
 
@@ -297,6 +424,7 @@ class NetworkInventory:
         """Perform complete inventory scan"""
         network_data = {"clients": [], "networks": [], "access_points": [], "scan_results": []}
         container_data = []
+        vm_data = []
 
         # Network scanning
         if self.config.get("network_scan", {}).get("enabled", False):
@@ -331,4 +459,19 @@ class NetworkInventory:
                     containers = portainer.get_all_containers()
                     container_data.extend(containers)
 
-        return network_data, container_data
+        # Proxmox instances
+        if self.config.get("proxmox"):
+            for instance in self.config["proxmox"]:
+                if instance.get("enabled", True):
+                    proxmox = ProxmoxAPI(
+                        name=instance["name"],
+                        host=instance["host"],
+                        api_token_name=instance["api_token_name"],
+                        api_token_value=instance["api_token_value"],
+                        verify_ssl=instance.get("verify_ssl", False)
+                    )
+                    if proxmox.connect():
+                        vms = proxmox.get_vms()
+                        vm_data.extend(vms)
+
+        return network_data, container_data, vm_data
