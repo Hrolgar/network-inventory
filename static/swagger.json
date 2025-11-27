@@ -1,0 +1,380 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Network Inventory Dashboard API",
+    "description": "API for monitoring UniFi networks and Docker containers across Portainer instances",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Network Inventory Dashboard",
+      "url": "https://github.com/hrolgar/network-inventory"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "API endpoints"
+    }
+  ],
+  "paths": {
+    "/data": {
+      "get": {
+        "summary": "Get cached scan data",
+        "description": "Returns the last scan data without triggering a new scan. If no data exists, triggers an initial scan.",
+        "operationId": "getData",
+        "tags": ["Scanning"],
+        "responses": {
+          "200": {
+            "description": "Successful response with scan data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanData"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scan": {
+      "post": {
+        "summary": "Trigger a new scan",
+        "description": "Initiates a new network and container inventory scan. Respects cooldown period between scans.",
+        "operationId": "triggerScan",
+        "tags": ["Scanning"],
+        "responses": {
+          "200": {
+            "description": "Scan completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanData"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Scan rejected due to cooldown or already in progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Scan failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "summary": "Get scan status",
+        "description": "Returns information about scan status and cooldown",
+        "operationId": "getStatus",
+        "tags": ["Status"],
+        "responses": {
+          "200": {
+            "description": "Status information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Returns health status of the application",
+        "operationId": "healthCheck",
+        "tags": ["Status"],
+        "responses": {
+          "200": {
+            "description": "Application is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ScanData": {
+        "type": "object",
+        "properties": {
+          "network": {
+            "$ref": "#/components/schemas/NetworkData"
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Container"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of when scan was performed"
+          },
+          "next_scan_available": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of when next scan is allowed"
+          },
+          "is_cached": {
+            "type": "boolean",
+            "description": "Whether this data is from cache"
+          },
+          "can_refresh": {
+            "type": "boolean",
+            "description": "Whether a new scan can be triggered"
+          },
+          "age_seconds": {
+            "type": "number",
+            "description": "Age of cached data in seconds"
+          }
+        }
+      },
+      "NetworkData": {
+        "type": "object",
+        "properties": {
+          "clients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UniFiClient"
+            }
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UniFiNetwork"
+            }
+          },
+          "access_points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessPoint"
+            }
+          },
+          "scan_results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkDevice"
+            }
+          }
+        }
+      },
+      "UniFiClient": {
+        "type": "object",
+        "properties": {
+          "mac": {
+            "type": "string",
+            "description": "MAC address"
+          },
+          "ip": {
+            "type": "string",
+            "description": "IP address"
+          },
+          "hostname": {
+            "type": "string",
+            "description": "Device hostname"
+          },
+          "name": {
+            "type": "string",
+            "description": "Friendly name"
+          },
+          "is_wired": {
+            "type": "boolean",
+            "description": "Whether device is wired (vs wireless)"
+          },
+          "rssi": {
+            "type": "integer",
+            "description": "Signal strength in dBm (wireless only)"
+          },
+          "network": {
+            "type": "string",
+            "description": "Network name"
+          },
+          "essid": {
+            "type": "string",
+            "description": "SSID for wireless clients"
+          }
+        }
+      },
+      "UniFiNetwork": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "vlan": {
+            "type": "integer"
+          },
+          "ip_subnet": {
+            "type": "string"
+          }
+        }
+      },
+      "AccessPoint": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "mac": {
+            "type": "string"
+          },
+          "state": {
+            "type": "integer"
+          },
+          "num_sta": {
+            "type": "integer",
+            "description": "Number of connected clients"
+          }
+        }
+      },
+      "NetworkDevice": {
+        "type": "object",
+        "properties": {
+          "ip": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "mac": {
+            "type": "string"
+          },
+          "vendor": {
+            "type": "string"
+          }
+        }
+      },
+      "Container": {
+        "type": "object",
+        "properties": {
+          "Id": {
+            "type": "string"
+          },
+          "Names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "Image": {
+            "type": "string"
+          },
+          "Status": {
+            "type": "string"
+          },
+          "State": {
+            "type": "string"
+          },
+          "Ports": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "portainer_instance": {
+            "type": "string",
+            "description": "Name of Portainer instance"
+          },
+          "endpoint_name": {
+            "type": "string",
+            "description": "Docker endpoint name"
+          },
+          "endpoint_id": {
+            "type": "integer"
+          }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "properties": {
+          "is_scanning": {
+            "type": "boolean",
+            "description": "Whether a scan is currently in progress"
+          },
+          "can_scan": {
+            "type": "boolean",
+            "description": "Whether a new scan can be triggered"
+          },
+          "last_scan": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of last scan"
+          },
+          "scan_cooldown": {
+            "type": "integer",
+            "description": "Cooldown period in seconds"
+          },
+          "cooldown_remaining": {
+            "type": "integer",
+            "description": "Seconds remaining until next scan allowed"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detailed error message"
+          },
+          "cooldown_remaining": {
+            "type": "integer",
+            "description": "Seconds remaining (for rate limit errors)"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Scanning",
+      "description": "Network and container scanning operations"
+    },
+    {
+      "name": "Status",
+      "description": "Status and health check endpoints"
+    }
+  ]
+}

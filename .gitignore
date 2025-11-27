@@ -1,0 +1,70 @@
+# Configuration files with credentials
+.env
+config.yaml
+
+# Output directory
+inventory_output/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+.cache/
+
+# Backup files
+*.bak
+*~
+README_OLD.md
+
+
+# Frontend build files
+frontend/dist/
+frontend/node_modules/
+frontend/.env.local
+
+# Bun lockfile (binary version, we use the text-based bun.lock)
+frontend/bun.lockb
+
+# Frontend log files
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+
+# AI
+.claude/
+
+# New feature artifacts
+data/
+logs/
+coverage/
+.vitest/
+.venv-temp/

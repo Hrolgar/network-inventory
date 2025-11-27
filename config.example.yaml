@@ -1,0 +1,35 @@
+# Example configuration file for Network Inventory Dashboard
+# Use this for more complex setups, especially multiple Portainer instances
+# Place your config at: config.yaml (or set CONFIG_PATH environment variable)
+
+# Network scanning configuration
+network_scan:
+  enabled: true
+  subnet: "10.69.1.0/24"  # CIDR notation for your network
+
+# UniFi Controller configuration
+unifi:
+  enabled: true
+  host: "10.69.1.1"
+  port: 443  # 443 for UniFi OS (UDM/UDM Pro), 8443 for traditional controller
+  username: "your_username"
+  password: "your_password"
+  site: "default"  # UniFi site name
+
+# Portainer instances (supports multiple)
+portainer:
+  - name: "Main Portainer"
+    enabled: true
+    url: "https://10.69.1.4:9443"
+    api_token: "ptr_your_token_here"
+
+  - name: "Secondary Portainer"
+    enabled: true
+    url: "https://10.69.1.5:9443"
+    api_token: "ptr_another_token_here"
+
+  # Add more Portainer instances as needed
+  # - name: "Remote Site"
+  #   enabled: true
+  #   url: "https://remote.example.com:9443"
+  #   api_token: "ptr_remote_token"
