@@ -66,6 +66,9 @@ class TopologyDiagramGenerator:
         self.theme = options.get('theme', 'light')
         self.node_styles = DARK_THEME_STYLES if self.theme == 'dark' else NODE_STYLES
 
+        # Endpoint filtering
+        self.included_endpoints = options.get('included_endpoints', [])
+
         # Data extraction
         self.network = scan_data.get('network', {})
         self.containers = scan_data.get('containers', [])
@@ -132,6 +135,14 @@ class TopologyDiagramGenerator:
         if details:
             label += f'\\n{details}'
         return label
+
+    def _should_include_endpoint(self, endpoint_name: str) -> bool:
+        """Check if endpoint should be included based on filter"""
+        # If no filter specified, include all
+        if not self.included_endpoints:
+            return True
+        # Otherwise, check if endpoint is in the filter list
+        return endpoint_name in self.included_endpoints
 
     def _apply_smart_grouping(self, items: List[Dict], category: str) -> Tuple[List[Dict], List[Dict]]:
         """
@@ -248,6 +259,10 @@ class TopologyDiagramGenerator:
                 endpoint = endpoint_data['endpoint_name']
                 containers = endpoint_data['containers']
 
+                # Apply endpoint filter
+                if not self._should_include_endpoint(endpoint):
+                    continue
+
                 # Count running vs stopped
                 running = sum(1 for c in containers if c.get('State') == 'running')
 
@@ -351,6 +366,13 @@ class TopologyDiagramGenerator:
                 for endpoint_key, endpoint_data in endpoints_map.items():
                     endpoint_id = endpoint_key.replace(':', '_').replace(' ', '_')
                     containers = endpoint_data['containers']
+
+                    # Extract endpoint name for filtering
+                    endpoint_name = endpoint_key.split(':')[1] if ':' in endpoint_key else endpoint_key
+
+                    # Apply endpoint filter
+                    if not self._should_include_endpoint(endpoint_name):
+                        continue
 
                     # Network -> Endpoint (VM/host)
                     self.graph.edge(first_network, f"endpoint_{endpoint_id}")

@@ -185,6 +185,7 @@ export interface DiagramOptions {
   include_vlans: boolean;
   include_aps: boolean;
   theme: 'light' | 'dark';
+  included_endpoints?: string[]; // Filter to only show specific endpoints (VM/host names)
 }
 
 export interface DiagramTemplate {

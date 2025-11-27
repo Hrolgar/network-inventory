@@ -24,6 +24,7 @@ const DEFAULT_OPTIONS: DiagramOptions = {
   include_vlans: true,
   include_aps: true,
   theme: 'light',
+  included_endpoints: [], // Empty means all endpoints
 };
 
 const DiagramBuilder: React.FC<DiagramBuilderProps> = ({ isOpen, onClose, scanData }) => {
@@ -34,6 +35,7 @@ const DiagramBuilder: React.FC<DiagramBuilderProps> = ({ isOpen, onClose, scanDa
   const [selectedTemplate, setSelectedTemplate] = useState<string>('custom');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
+  const [selectedEndpoints, setSelectedEndpoints] = useState<string[]>([]);
 
   // Load templates on mount
   useEffect(() => {
@@ -99,10 +101,17 @@ const DiagramBuilder: React.FC<DiagramBuilderProps> = ({ isOpen, onClose, scanDa
     setSelectedTemplate(templateName);
     if (templateName === 'custom') {
       setOptions(DEFAULT_OPTIONS);
+      setSelectedEndpoints(availableEndpoints); // Reset to all endpoints
     } else {
       const template = templates.find(t => t.name === templateName);
       if (template) {
         setOptions(template.options);
+        // Update selected endpoints from template
+        if (template.options.included_endpoints && template.options.included_endpoints.length > 0) {
+          setSelectedEndpoints(template.options.included_endpoints);
+        } else {
+          setSelectedEndpoints(availableEndpoints); // Empty means all
+        }
       }
     }
   };
@@ -146,6 +155,34 @@ const DiagramBuilder: React.FC<DiagramBuilderProps> = ({ isOpen, onClose, scanDa
       toast.error(error.message || 'Failed to delete template');
     }
   };
+
+  // Extract unique endpoints from scanData
+  const getAvailableEndpoints = (): string[] => {
+    if (!scanData || !scanData.containers) return [];
+    const endpointSet = new Set<string>();
+    scanData.containers.forEach(container => {
+      const endpointName = container.endpoint_name || 'Unknown';
+      endpointSet.add(endpointName);
+    });
+    return Array.from(endpointSet).sort();
+  };
+
+  const availableEndpoints = getAvailableEndpoints();
+
+  // Initialize selected endpoints to all endpoints when scanData changes
+  useEffect(() => {
+    if (scanData && availableEndpoints.length > 0) {
+      setSelectedEndpoints(availableEndpoints);
+    }
+  }, [scanData]);
+
+  // Update options when selected endpoints change
+  useEffect(() => {
+    setOptions(prev => ({
+      ...prev,
+      included_endpoints: selectedEndpoints.length === availableEndpoints.length ? [] : selectedEndpoints
+    }));
+  }, [selectedEndpoints, availableEndpoints.length]);
 
   // Calculate counts for display
   const getCounts = () => {
@@ -333,6 +370,87 @@ setShowSaveDialog(false);
                   <span>📡 Access Points ({counts.aps})</span>
                 </label>
               </div>
+
+              {/* Endpoint Filter */}
+              {availableEndpoints.length > 0 && (
+                <div style={{ marginTop: '24px' }}>
+                  <h4 style={{ color: 'var(--text-primary)', marginBottom: '12px' }}>
+                    Docker Hosts/Endpoints
+                    <button
+                      onClick={() => setSelectedEndpoints(availableEndpoints)}
+                      style={{
+                        marginLeft: '12px',
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      Select All
+                    </button>
+                    <button
+                      onClick={() => setSelectedEndpoints([])}
+                      style={{
+                        marginLeft: '6px',
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      Clear All
+                    </button>
+                  </h4>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    padding: '8px',
+                    backgroundColor: 'var(--bg-secondary)',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                  }}>
+                    {availableEndpoints.map(endpoint => {
+                      const containerCount = scanData?.containers?.filter(c => c.endpoint_name === endpoint).length || 0;
+                      return (
+                        <label
+                          key={endpoint}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedEndpoints.includes(endpoint)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedEndpoints([...selectedEndpoints, endpoint]);
+                              } else {
+                                setSelectedEndpoints(selectedEndpoints.filter(ep => ep !== endpoint));
+                              }
+                            }}
+                            style={{ width: '16px', height: '16px' }}
+                          />
+                          <span>{endpoint} ({containerCount})</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Theme Selector */}
               <div style={{ marginTop: '24px' }}>

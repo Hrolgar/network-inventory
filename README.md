@@ -1,11 +1,13 @@
 # Network Inventory Dashboard
 
-Web dashboard for monitoring UniFi networks and Docker containers across multiple Portainer instances. Built this for my homelab, figured others might find it useful.
+Web dashboard for monitoring UniFi networks, Docker containers across multiple Portainer instances, and Proxmox VMs. Built this for my homelab, figured others might find it useful.
 
 ## What It Does
 
 - Shows all devices on your UniFi network with signal strength, IPs, and MACs
 - Lists Docker containers across multiple Portainer instances
+- Monitors Proxmox VMs and LXC containers
+- **Generate network topology diagrams** - Visual hierarchical diagrams showing your entire infrastructure
 - Groups everything by network/endpoint in tabs
 - Search/sort/filter everything
 - Export data (JSON, CSV, XML)
@@ -140,12 +142,29 @@ PORTAINER_NAME=Main Portainer
 PORTAINER_URL=https://10.69.1.4:9443
 PORTAINER_API_TOKEN=ptr_your_token_here
 
+# Proxmox VE (optional)
+PROXMOX_ENABLED=false
+PROXMOX_NAME=Main Proxmox
+PROXMOX_HOST=10.69.1.10
+PROXMOX_API_TOKEN_NAME=root@pam!monitoring
+PROXMOX_API_TOKEN_VALUE=your_token_secret_here
+PROXMOX_VERIFY_SSL=false
+
 # Optional features
 HISTORY_ENABLED=true       # Store scan history in SQLite
 LOG_LEVEL=INFO            # Logging level: DEBUG, INFO, WARNING, ERROR
 ```
 
-**Multiple Portainer instances?** Use `config.yaml` instead of environment variables (see `config.example.yaml` for structure).
+**Multiple Portainer/Proxmox instances?** Use `config.yaml` instead of environment variables (see `config.example.yaml` for structure).
+
+**Proxmox API Token Setup:**
+1. Log into Proxmox web UI
+2. Go to Datacenter → Permissions → API Tokens
+3. Click "Add" to create a new token
+4. Select user (e.g., `root@pam`), enter token ID (e.g., `monitoring`)
+5. Uncheck "Privilege Separation" if you want full access
+6. Copy the token secret (shown only once!)
+7. Token name format: `username@realm!tokenid` (e.g., `root@pam!monitoring`)
 
 ---
 
@@ -154,6 +173,15 @@ LOG_LEVEL=INFO            # Logging level: DEBUG, INFO, WARNING, ERROR
 - Network device discovery (nmap)
 - UniFi integration (clients, networks, APs, signal strength)
 - Multi-instance Portainer support
+- **Proxmox VE integration** (QEMU VMs and LXC containers with API token authentication)
+- **Network topology diagram generator:**
+  - Visual hierarchical diagrams of your entire infrastructure
+  - Customizable component selection (containers, VMs, IoT devices, VLANs, APs)
+  - Smart grouping for large networks (>50 devices)
+  - Save/load diagram templates
+  - Export as PNG or SVG
+  - Light/dark theme support
+  - Shows proper hierarchy: Networks → Docker Hosts → Containers
 - Global search across everything
 - Sortable tables
 - Dark/light theme with database-backed user preferences
