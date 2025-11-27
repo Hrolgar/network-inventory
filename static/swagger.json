@@ -299,6 +299,93 @@
           }
         }
       }
+    },
+    "/settings": {
+      "get": {
+        "summary": "Get user settings",
+        "description": "Retrieves all user settings from the database",
+        "operationId": "getSettings",
+        "tags": ["Settings"],
+        "responses": {
+          "200": {
+            "description": "Settings retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "settings": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Key-value pairs of user settings"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to retrieve settings"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update user settings",
+        "description": "Updates user settings in the database",
+        "operationId": "updateSettings",
+        "tags": ["Settings"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "settings": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Key-value pairs of settings to update"
+                  }
+                },
+                "required": ["settings"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settings updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "settings": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "500": {
+            "description": "Failed to update settings"
+          }
+        }
+      }
     }
   },
   "components": {

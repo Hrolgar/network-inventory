@@ -57,8 +57,6 @@ A Makefile is provided for common tasks. Run `make help` to see all commands.
 ```bash
 make install    # Install all dependencies
 make test       # Run tests
-make lint       # Check code quality
-make format     # Auto-fix formatting
 ```
 
 ### Backend Setup
@@ -98,24 +96,22 @@ The frontend is a React application built with TypeScript and Bun.
     ```
     The frontend dev server will be running on [http://localhost:3000](http://localhost:3000) and will proxy API requests to the backend on port 5000. Open this URL in your browser.
 
-### Testing & Code Quality
+### Testing
 
 ```bash
-# Tests
-pytest -v              # Backend tests
-cd frontend && bun test  # Frontend tests
+# Backend tests
+pytest -v
+make test-backend
 
-# Code quality
-black .                # Format Python code
-ruff check .           # Lint Python code
-cd frontend && bun run lint  # Lint frontend code
+# Frontend tests
+cd frontend && bun test
+make test-frontend
 
-# Pre-commit hooks (automatic formatting before commits)
-pre-commit install     # One-time setup
-# Hooks run automatically on git commit
+# All tests
+make test
 ```
 
-See [PRE_COMMIT_SETUP.md](PRE_COMMIT_SETUP.md) for detailed pre-commit hook documentation.
+**Philosophy:** This project focuses on working code over perfect formatting. Tests must pass, formatting is optional.
 
 ## Configuration
 
@@ -160,13 +156,15 @@ LOG_LEVEL=INFO            # Logging level: DEBUG, INFO, WARNING, ERROR
 - Multi-instance Portainer support
 - Global search across everything
 - Sortable tables
-- Dark mode with localStorage
+- Dark/light theme with database-backed user preferences
 - Auto-refresh with configurable cooldown
 - Responsive design
 - Alerts for stopped containers and poor WiFi signals
 - Data export (JSON, CSV, XML)
 - Historical data tracking with SQLite
+- Interactive time-series charts for trend analysis
 - Real-time WebSocket updates
+- User settings system (persisted to database)
 - Interactive API documentation (Swagger UI at `/api/docs`)
 - Structured logging with rotation
 - Environment validation on startup

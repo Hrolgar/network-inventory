@@ -10,7 +10,7 @@ import ContainersTable from './components/ContainersTable';
 import DownloadDropdown from './components/DownloadDropdown';
 import HistoricalCharts from './components/HistoricalCharts';
 import ErrorBoundary from './components/ErrorBoundary';
-import Settings, { AppSettings, loadSettings } from './components/Settings';
+import Settings, { AppSettings, loadSettings, DEFAULT_SETTINGS } from './components/Settings';
 
 // --- Theme Context ---
 type Theme = 'light' | 'dark';
@@ -61,15 +61,21 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>(''); // New state for search query
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [settings, setSettings] = useState<AppSettings>(loadSettings());
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const autoRefreshIntervalRef = React.useRef<number | null>(null);
   const { theme, toggleTheme } = useTheme();
 
-  // Sync theme from settings
+  // Load settings from API on mount
   useEffect(() => {
-    if (settings.theme !== theme) {
-      toggleTheme();
-    }
+    const initSettings = async () => {
+      const loadedSettings = await loadSettings();
+      setSettings(loadedSettings);
+      // Sync theme if different
+      if (loadedSettings.theme !== theme) {
+        toggleTheme();
+      }
+    };
+    initSettings();
   }, []);
 
   const loadAllData = useCallback(async (isTriggeredScan: boolean = false, skipToast: boolean = false) => {

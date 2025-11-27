@@ -138,3 +138,27 @@ export const fetchMetricHistory = async (
   const data = await response.json();
   return data.data || [];
 };
+
+export const fetchSettings = async (): Promise<Record<string, string>> => {
+  const response = await fetch(`${API_BASE_URL}/settings`);
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to fetch settings');
+  }
+  const data = await response.json();
+  return data.settings || {};
+};
+
+export const saveSettings = async (settings: Record<string, any>): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/settings`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ settings }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to save settings');
+  }
+};

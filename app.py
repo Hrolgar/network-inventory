@@ -295,6 +295,34 @@ def cleanup_history():
     return jsonify(result)
 
 
+@app.route("/api/settings", methods=["GET"])
+def get_settings():
+    """Get all user settings"""
+    try:
+        settings = db.get_all_settings()
+        return jsonify({"settings": settings})
+    except Exception as e:
+        logger.error(f"Failed to get settings: {e}")
+        return jsonify({"error": "Failed to retrieve settings"}), 500
+
+
+@app.route("/api/settings", methods=["PUT"])
+def update_settings():
+    """Update user settings"""
+    try:
+        data = request.get_json()
+        if not data or "settings" not in data:
+            return jsonify({"error": "Invalid request body"}), 400
+
+        settings = data["settings"]
+        db.update_settings(settings)
+        logger.info(f"Settings updated: {list(settings.keys())}")
+        return jsonify({"success": True, "settings": settings})
+    except Exception as e:
+        logger.error(f"Failed to update settings: {e}")
+        return jsonify({"error": "Failed to update settings"}), 500
+
+
 if __name__ == "__main__":
     # Validate environment before starting
     logger.info("Validating configuration...")
