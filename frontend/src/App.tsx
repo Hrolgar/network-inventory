@@ -10,6 +10,7 @@ import ContainersTable from './components/ContainersTable';
 import DownloadDropdown from './components/DownloadDropdown';
 import HistoricalCharts from './components/HistoricalCharts';
 import ErrorBoundary from './components/ErrorBoundary';
+import Settings, { AppSettings, loadSettings } from './components/Settings';
 
 // --- Theme Context ---
 type Theme = 'light' | 'dark';
@@ -57,11 +58,19 @@ const App: React.FC = () => {
   const [scanData, setScanData] = useState<ScanData | null>(null);
   const [apiStatus, setApiStatus] = useState<ApiStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>(''); // New state for search query
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [settings, setSettings] = useState<AppSettings>(loadSettings());
   const autoRefreshIntervalRef = React.useRef<number | null>(null);
   const { theme, toggleTheme } = useTheme();
+
+  // Sync theme from settings
+  useEffect(() => {
+    if (settings.theme !== theme) {
+      toggleTheme();
+    }
+  }, []);
 
   const loadAllData = useCallback(async (isTriggeredScan: boolean = false, skipToast: boolean = false) => {
     setLoading(true);
@@ -118,7 +127,7 @@ const App: React.FC = () => {
     loadAllData();
   }, [loadAllData]);
 
-  // Poll status every second to update cooldown timer
+  // Poll status to update cooldown timer (using settings.statusPollInterval)
   useEffect(() => {
     const statusInterval = setInterval(async () => {
       try {
@@ -127,17 +136,17 @@ const App: React.FC = () => {
       } catch (err) {
         console.error('Failed to fetch status:', err);
       }
-    }, 1000); // Update every second
+    }, settings.statusPollInterval);
 
     return () => clearInterval(statusInterval);
-  }, []);
+  }, [settings.statusPollInterval]);
 
   useEffect(() => {
     if (autoRefreshIntervalRef.current) {
       clearInterval(autoRefreshIntervalRef.current);
     }
 
-    if (autoRefreshEnabled && apiStatus && apiStatus.scan_cooldown) {
+    if (settings.autoRefreshEnabled && apiStatus && apiStatus.scan_cooldown) {
       const interval = (apiStatus.scan_cooldown + 5) * 1000; // Cooldown + 5 seconds buffer
       autoRefreshIntervalRef.current = window.setInterval(() => {
         // Only refresh if not currently scanning and ready to scan
@@ -154,10 +163,18 @@ const App: React.FC = () => {
         clearInterval(autoRefreshIntervalRef.current);
       }
     };
-  }, [autoRefreshEnabled, apiStatus, loadAllData]);
+  }, [settings.autoRefreshEnabled, apiStatus, loadAllData]);
 
   const handleRefreshClick = async () => {
     await loadAllData(true); // Trigger a scan
+  };
+
+  const handleSettingsChange = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    // Update theme if changed
+    if (newSettings.theme !== theme) {
+      toggleTheme();
+    }
   };
 
   const updateThemeIcon = (currentTheme: Theme) => {
@@ -238,13 +255,14 @@ const App: React.FC = () => {
             {(loading && (isScanning || apiStatus?.is_scanning)) ? <span className="spinner"></span> : '🔄'} Refresh
           </button>
           <DownloadDropdown scanData={scanData} />
-          <button id="theme-toggle" className="theme-toggle" onClick={toggleTheme} title="Toggle dark mode">
-            {updateThemeIcon(theme)}
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowSettings(true)}
+            title="Settings"
+            style={{ padding: '8px 16px' }}
+          >
+            ⚙️ Settings
           </button>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-            <input type="checkbox" id="auto-refresh-toggle" checked={autoRefreshEnabled} onChange={(e) => setAutoRefreshEnabled(e.target.checked)} />
-            Auto-refresh
-          </label>
           <span className={`status-indicator ${(isScanning || apiStatus?.is_scanning) ? 'status-scanning' : (apiStatus?.can_scan ? 'status-ready' : 'status-cooldown')}`}>
             {(isScanning || apiStatus?.is_scanning) ? '🔄 Scanning...' : (apiStatus?.can_scan ? '✅ Ready' : `⏱️ Cooldown: ${apiStatus?.cooldown_remaining || 0}s`)}
           </span>
@@ -344,7 +362,7 @@ const App: React.FC = () => {
                     </div>
                   }
                 >
-                  <HistoricalCharts timeRange={24} />
+                  <HistoricalCharts timeRange={settings.defaultChartTimeRange} />
                 </ErrorBoundary>
 
                 <NetworksTable networks={filteredScanData.network.networks} loading={loading && !scanData} />
@@ -353,6 +371,14 @@ const App: React.FC = () => {
                 <ContainersTable containers={filteredScanData.containers} loading={loading && !scanData} />
               </>
             )}
+
+      {/* Settings Modal */}
+      <Settings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSettingsChange={handleSettingsChange}
+        currentSettings={settings}
+      />
     </div>
   );
 };

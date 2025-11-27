@@ -84,6 +84,29 @@ class Database:
             """
             )
 
+            # User settings table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """
+            )
+
+            # Insert default settings if they don't exist
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO settings (key, value) VALUES
+                ('auto_refresh_enabled', 'false'),
+                ('status_poll_interval', '5000'),
+                ('default_chart_time_range', '24'),
+                ('theme', 'light'),
+                ('scan_cooldown', '300')
+            """
+            )
+
             logger.info(f"Database initialized at {self.db_path}")
 
     def save_scan(self, scan_data: dict, scan_type: str = "full") -> int:
@@ -272,3 +295,45 @@ class Database:
             logger.info(f"Cleaned up {deleted_scans} old scans and {deleted_metrics} old metrics")
 
             return {"deleted_scans": deleted_scans, "deleted_metrics": deleted_metrics}
+
+    def get_setting(self, key: str, default: str = None) -> str:
+        """Get a single setting value"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+            row = cursor.fetchone()
+            return row["value"] if row else default
+
+    def get_all_settings(self) -> dict:
+        """Get all settings as a dictionary"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT key, value FROM settings")
+            return {row["key"]: row["value"] for row in cursor.fetchall()}
+
+    def set_setting(self, key: str, value: str):
+        """Set a single setting value"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO settings (key, value, updated_at)
+                VALUES (?, ?, datetime('now'))
+            """,
+                (key, value),
+            )
+            logger.debug(f"Setting updated: {key} = {value}")
+
+    def update_settings(self, settings: dict):
+        """Update multiple settings at once"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            for key, value in settings.items():
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO settings (key, value, updated_at)
+                    VALUES (?, ?, datetime('now'))
+                """,
+                    (key, str(value)),
+                )
+            logger.info(f"Updated {len(settings)} settings")

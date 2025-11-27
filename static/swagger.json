@@ -121,6 +121,184 @@
           }
         }
       }
+    },
+    "/history": {
+      "get": {
+        "summary": "Get scan history",
+        "description": "Returns list of recent scans with summary information",
+        "operationId": "getHistory",
+        "tags": ["Historical Data"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of scans to return (default: 10)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of historical scans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scans": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/HistoryScan"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "History feature disabled"
+          }
+        }
+      }
+    },
+    "/history/{scan_id}": {
+      "get": {
+        "summary": "Get specific historical scan",
+        "description": "Returns full data for a specific historical scan by ID",
+        "operationId": "getHistoryScan",
+        "tags": ["Historical Data"],
+        "parameters": [
+          {
+            "name": "scan_id",
+            "in": "path",
+            "description": "Scan ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historical scan data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanData"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Scan not found or history feature disabled"
+          }
+        }
+      }
+    },
+    "/metrics/{metric_name}": {
+      "get": {
+        "summary": "Get metric history",
+        "description": "Returns time-series data for a specific metric for trend analysis",
+        "operationId": "getMetrics",
+        "tags": ["Historical Data"],
+        "parameters": [
+          {
+            "name": "metric_name",
+            "in": "path",
+            "description": "Metric name (e.g., client_count, container_count, avg_wifi_signal)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["client_count", "container_count", "network_count", "ap_count", "avg_wifi_signal", "containers_running", "containers_stopped"]
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "description": "Time range in hours (default: 24)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metric time-series data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "metric": {
+                      "type": "string",
+                      "description": "Metric name"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MetricDataPoint"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "History feature disabled"
+          }
+        }
+      }
+    },
+    "/history/cleanup": {
+      "post": {
+        "summary": "Cleanup old historical data",
+        "description": "Removes historical data older than specified number of days",
+        "operationId": "cleanupHistory",
+        "tags": ["Historical Data"],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Delete data older than this many days (default: 30)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cleanup completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "integer",
+                      "description": "Number of records deleted"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "History feature disabled"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -364,6 +542,64 @@
             "description": "Seconds remaining (for rate limit errors)"
           }
         }
+      },
+      "HistoryScan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Unique scan ID"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the scan was performed"
+          },
+          "scan_type": {
+            "type": "string",
+            "description": "Type of scan (e.g., full, partial)"
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "total_clients": {
+                "type": "integer"
+              },
+              "total_networks": {
+                "type": "integer"
+              },
+              "total_access_points": {
+                "type": "integer"
+              },
+              "total_containers": {
+                "type": "integer"
+              }
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the record was created"
+          }
+        }
+      },
+      "MetricDataPoint": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time of measurement"
+          },
+          "value": {
+            "type": "number",
+            "description": "Metric value"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata for this data point"
+          }
+        }
       }
     }
   },
@@ -375,6 +611,10 @@
     {
       "name": "Status",
       "description": "Status and health check endpoints"
+    },
+    {
+      "name": "Historical Data",
+      "description": "Historical scan data and metrics for trend analysis"
     }
   ]
 }

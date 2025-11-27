@@ -90,7 +90,7 @@ const HistoricalCharts: React.FC<HistoricalChartsProps> = ({ timeRange = 24 }) =
               key={option.value}
               className={`btn ${selectedRange === option.value ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setSelectedRange(option.value)}
-              style={{ padding: '6px 12px', fontSize: '0.9em' }}
+              style={{ padding: '5px 10px', fontSize: '0.8em' }}
             >
               {option.label}
             </button>
@@ -114,33 +114,34 @@ const HistoricalCharts: React.FC<HistoricalChartsProps> = ({ timeRange = 24 }) =
                 <AreaChart data={formatChartData(clientData)}>
                   <defs>
                     <linearGradient id="colorClients" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--accent-color)" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="var(--accent-color)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                   <XAxis
                     dataKey="timestamp"
                     stroke="var(--text-secondary)"
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 10 }}
                     angle={-45}
                     textAnchor="end"
                     height={80}
                   />
-                  <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 12 }} />
+                  <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 10 }} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'var(--card-bg)',
                       border: '1px solid var(--border-color)',
                       borderRadius: '8px',
+                      padding: '3px 6px',
                     }}
-                    labelStyle={{ color: 'var(--text-primary)' }}
+                    labelStyle={{ color: 'var(--text-primary)', fontSize: '11px' }}
                   />
                   <Legend />
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke="#3b82f6"
+                    stroke="var(--accent-color)"
                     fillOpacity={1}
                     fill="url(#colorClients)"
                     name="Connected Clients"
@@ -166,25 +167,26 @@ const HistoricalCharts: React.FC<HistoricalChartsProps> = ({ timeRange = 24 }) =
                   <XAxis
                     dataKey="timestamp"
                     stroke="var(--text-secondary)"
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 10 }}
                     angle={-45}
                     textAnchor="end"
                     height={80}
                   />
-                  <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 12 }} />
+                  <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 10 }} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'var(--card-bg)',
                       border: '1px solid var(--border-color)',
                       borderRadius: '8px',
+                      padding: '3px 6px',
                     }}
-                    labelStyle={{ color: 'var(--text-primary)' }}
+                    labelStyle={{ color: 'var(--text-primary)', fontSize: '11px' }}
                   />
                   <Legend />
                   <Line
                     type="monotone"
                     dataKey="value"
-                    stroke="#10b981"
+                    stroke="var(--accent-color)"
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     activeDot={{ r: 5 }}
